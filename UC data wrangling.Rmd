@@ -1,0 +1,205 @@
+---
+title: "UC data wrangling"
+author: "Anupriya Kushwanshi"
+date: "May 25, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+reading data
+```{r}
+library(tidyverse)
+
+house <- read.table("C:/Users/anupr/Documents/Flex2/DAM/Hours-to-Pay-Mortgage.csv",sep = ",", header = T, col.names = c("City","State","Median Price","Mortgage Rate 30yr","Monthly Mortgage Payment","Median Income","Hours/month needed","Periods","Present Value", "X", "bin"))
+
+tail(house)
+house <- select(house, everything(), -c("X","bin"))
+head(house)
+    
+```
+
+Checking for null values
+```{r}
+colSums(is.na(house))
+```
+```{r}
+str(house)
+```
+Changing the class of numerical variables
+```{r}
+
+  house$Median.Price <- as.integer(house$Median.Price)
+  house$Median.Income <- as.factor(house$Median.Income)
+  house$Monthly.Mortgage.Payment <- as.numeric(house$Monthly.Mortgage.Payment)
+  house$Hours.month.needed <- as.numeric(house$Hours.month.needed)
+  house$Mortgage.Rate.30yr <- house$Mortgage.Rate.30yr
+```
+
+Plots using subsetted data
+```{r}
+
+top_10_med_price <- head(arrange(house, by = Median.Price), 10)
+
+str(top_10_med_price)
+```
+
+```{r}
+
+top_10_med_price%>%
+  ggplot(aes(x=reorder(City,-Median.Price), y=Median.Price, fill =  Median.Income ))+geom_bar(stat="identity")+xlab("City")+ylab("Median House Price")
+
+```
+
+```{r}
+top_10_med_price%>%
+  ggplot(aes(x=reorder(City,-Present.Value), y=Median.Price, fill = Monthly.Mortgage.Payment  ))+geom_bar(stat="identity")+xlab("City")+ylab("Median House Price")
+
+```
+
+Reading data in a faster way - good for big data
+```{r}
+library(data.table)
+
+house.2 <- read.csv("C:/Users/anupr/Documents/Flex2/DAM/Hours-to-Pay-Mortgage.csv")
+```
+Read_csv and fread maintain white spaces. fread is fastest of all.
+```{r}
+house.3 <- read_csv("C:/Users/anupr/Documents/Flex2/DAM/Hours-to-Pay-Mortgage.csv")
+system.time(house.1 <- fread("C:/Users/anupr/Documents/Flex2/DAM/Hours-to-Pay-Mortgage.csv"))
+```
+
+exporting data in multiple sheets in excel
+```{r}
+# install.packages("devtools")
+'devtools::install_github("kassambara/r2excel")
+library(r2excel)
+
+multiple_df <- createWorkbook()
+car_df <- createSheet(wb = multiple_df, sheetName = "Cars")
+iris_df <- createSheet(wb = multiple_df, sheetName = "Iris")'
+```
+
+read from database
+```{r}
+'install.packages("RODBC")
+require(RODBC)'
+```
+Qplot - plotting 2 types at once
+```{r}
+data("mpg")
+head(mpg)
+qplot(temperature, pressure, data = pressure, geom = c("line", "point"))
+
+```
+Barplot
+```{r}
+head(mpg)
+str(mpg)
+qplot(data = mpg, manufacturer)
+ggplot(mpg, aes(manufacturer, fill=class))+geom_bar()
+```
+
+Histogram
+```{r}
+mpg$year <- as.factor(mpg$year)
+str(mpg)
+unique(mpg$year)
+ggplot(mpg, aes(x=year, fill=class))+geom_bar()
+```
+
+Stem and leaf plot
+```{r}
+stem(mpg$displ)
+```
+Line Chart - changes over time
+```{r}
+mpg%>%
+ggplot(aes(x=year, y=hwy))+ geom_line() +geom_point(aes(colour = model))+  geom_line(aes(group = model), colour = "grey50")
+```
+
+ case study - data cleaning
+```{r}
+data("who")
+head(who)
+```
+```{r}
+dim(who)
+```
+
+```{r}
+str(who)
+```
+```{r}
+unique(who$newrel_f2534)
+```
+```{r}
+colnames(who)
+```
+ 
+ There are so many columns with similar data. We see there are some numbers in each such column. This can be count.
+```{r}
+who_gather <- gather(who,new_sp_m014:newrel_f65 ,key="key",value = "cases" , na.rm = TRUE)
+head(arrange(who_gather, by=desc(cases)))
+
+```
+```{r}
+count(who_gather,key)
+```
+```{r}
+ who_sep <- separate(who_gather, key, c("new or old", "type", "sex_age"), sep='_')
+head(who_sep)
+```
+split sex and age after the first character
+```{r}
+who_sep_1 <- separate(who_sep, sex_age, c("sex","age"), sep=1)
+head(who_sep_1)
+```
+```{r}
+final_who <- select(who_sep_1, everything(), -c("iso2","iso3"))
+head(final_who)
+```
+```{r}
+final_who <- na.omit(final_who)
+str(final_who)
+
+```
+
+Visualising new who dataset
+```{r}
+final_who%>%
+  ggplot(aes(year, fill=sex))+geom_bar()+theme(legend.position = "top")
+```
+
+```{r}
+final_who%>%
+  ggplot(aes(year, fill=age))+geom_bar()
+```
+
+ Top 10 cases are from India
+```{r}
+top_10_country <- head(arrange(final_who, desc(cases)), 10)
+top_10_country%>%
+  ggplot(aes(x=top_10_country$country, fill=top_10_country$type))+geom_bar()
+```
+Top 50 cases are from India and China
+```{r}
+top_50_country <- head(arrange(final_who, desc(cases)), 50)
+top_50_country%>%
+  ggplot(aes(x=top_50_country$country, fill=top_50_country$type))+geom_bar()
+```
+```{r}
+top_50_country <- head(arrange(final_who, desc(cases)), 50)
+top_50_country%>%
+  ggplot(aes(x=top_50_country$country, fill=top_50_country$sex))+geom_bar()
+```
+
+Bottom 50 
+```{r}
+bottom_50_country <- head(arrange(final_who), 50)
+bottom_50_country%>%
+  ggplot(aes(x=country, fill=sex))+geom_bar()
+```
+
